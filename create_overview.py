@@ -14,6 +14,7 @@ eval_results = np.load('models/evaluation_results.npz')
 x = orig_data['x']
 S = orig_data['S']
 frequencies = orig_data['frequencies']
+phases = orig_data['phases'] if 'phases' in orig_data else np.zeros(4)
 
 # Create comprehensive figure
 fig = plt.figure(figsize=(20, 12))
@@ -61,11 +62,11 @@ Total Samples: 10,000
 Time Interval: [0, 20] seconds
 Sampling Rate: {len(x)/(x[-1]-x[0]):.0f} Hz
 
-Frequencies:
-  f1 = {frequencies[0]} Hz
-  f2 = {frequencies[1]} Hz
-  f3 = {frequencies[2]} Hz
-  f4 = {frequencies[3]} Hz
+Phase-Shifted Frequencies:
+  f1 = {frequencies[0]} Hz (θ={np.degrees(phases[0]):.0f}°)
+  f2 = {frequencies[1]} Hz (θ={np.degrees(phases[1]):.0f}°)
+  f3 = {frequencies[2]} Hz (θ={np.degrees(phases[2]):.0f}°)
+  f4 = {frequencies[3]} Hz (θ={np.degrees(phases[3]):.0f}°)
 
 Training Set: 31,840 sequences
 Validation Set: 3,980 sequences

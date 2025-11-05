@@ -15,9 +15,12 @@ f3 = data['f3']
 f4 = data['f4']
 S = data['S']
 frequencies = data['frequencies']
+phases = data['phases']
 
 print(f"Loaded data with {len(x)} samples")
 print(f"Frequencies: {frequencies}")
+print(f"Phases (radians): {phases}")
+print(f"Phases (degrees): {np.degrees(phases)}")
 
 # Create visualization directory
 Path("visualizations").mkdir(exist_ok=True)
@@ -26,29 +29,33 @@ Path("visualizations").mkdir(exist_ok=True)
 # Visualization 1: Individual Frequencies in Time Domain
 # ============================================================================
 fig, axes = plt.subplots(5, 1, figsize=(14, 12))
-fig.suptitle('Time Domain - Individual Frequencies and Combined Signal', fontsize=16)
+fig.suptitle('Time Domain - Phase-Shifted Frequencies and Combined Signal', fontsize=16)
 
 # Plot only first 2 seconds for clarity
 plot_range = (x >= 0) & (x <= 2)
 x_plot = x[plot_range]
 
-# Individual frequencies
-axes[0].plot(x_plot, f1[plot_range], 'b-', linewidth=1.5, label=f'f1(x) = sin(2π·{frequencies[0]}·x)')
+# Individual frequencies with phase information
+axes[0].plot(x_plot, f1[plot_range], 'b-', linewidth=1.5, 
+            label=f'f1(x) = sin(2π·{frequencies[0]}·x + {phases[0]:.3f}), θ={np.degrees(phases[0]):.0f}°')
 axes[0].set_ylabel('f1(x)', fontsize=10)
 axes[0].legend(loc='upper right')
 axes[0].grid(True, alpha=0.3)
 
-axes[1].plot(x_plot, f2[plot_range], 'g-', linewidth=1.5, label=f'f2(x) = sin(2π·{frequencies[1]}·x)')
+axes[1].plot(x_plot, f2[plot_range], 'g-', linewidth=1.5, 
+            label=f'f2(x) = sin(2π·{frequencies[1]}·x + {phases[1]:.3f}), θ={np.degrees(phases[1]):.0f}°')
 axes[1].set_ylabel('f2(x)', fontsize=10)
 axes[1].legend(loc='upper right')
 axes[1].grid(True, alpha=0.3)
 
-axes[2].plot(x_plot, f3[plot_range], 'r-', linewidth=1.5, label=f'f3(x) = sin(2π·{frequencies[2]}·x)')
+axes[2].plot(x_plot, f3[plot_range], 'r-', linewidth=1.5, 
+            label=f'f3(x) = sin(2π·{frequencies[2]}·x + {phases[2]:.3f}), θ={np.degrees(phases[2]):.0f}°')
 axes[2].set_ylabel('f3(x)', fontsize=10)
 axes[2].legend(loc='upper right')
 axes[2].grid(True, alpha=0.3)
 
-axes[3].plot(x_plot, f4[plot_range], 'm-', linewidth=1.5, label=f'f4(x) = sin(2π·{frequencies[3]}·x)')
+axes[3].plot(x_plot, f4[plot_range], 'm-', linewidth=1.5, 
+            label=f'f4(x) = sin(2π·{frequencies[3]}·x + {phases[3]:.3f}), θ={np.degrees(phases[3]):.0f}°')
 axes[3].set_ylabel('f4(x)', fontsize=10)
 axes[3].legend(loc='upper right')
 axes[3].grid(True, alpha=0.3)
@@ -157,14 +164,18 @@ plt.close()
 # Visualization 4: All Frequencies Overlaid
 # ============================================================================
 fig, ax = plt.subplots(figsize=(14, 6))
-ax.plot(x_plot, f1[plot_range], 'b-', linewidth=1.5, alpha=0.7, label=f'f1 ({frequencies[0]} Hz)')
-ax.plot(x_plot, f2[plot_range], 'g-', linewidth=1.5, alpha=0.7, label=f'f2 ({frequencies[1]} Hz)')
-ax.plot(x_plot, f3[plot_range], 'r-', linewidth=1.5, alpha=0.7, label=f'f3 ({frequencies[2]} Hz)')
-ax.plot(x_plot, f4[plot_range], 'm-', linewidth=1.5, alpha=0.7, label=f'f4 ({frequencies[3]} Hz)')
+ax.plot(x_plot, f1[plot_range], 'b-', linewidth=1.5, alpha=0.7, 
+        label=f'f1 ({frequencies[0]} Hz, θ={np.degrees(phases[0]):.0f}°)')
+ax.plot(x_plot, f2[plot_range], 'g-', linewidth=1.5, alpha=0.7, 
+        label=f'f2 ({frequencies[1]} Hz, θ={np.degrees(phases[1]):.0f}°)')
+ax.plot(x_plot, f3[plot_range], 'r-', linewidth=1.5, alpha=0.7, 
+        label=f'f3 ({frequencies[2]} Hz, θ={np.degrees(phases[2]):.0f}°)')
+ax.plot(x_plot, f4[plot_range], 'm-', linewidth=1.5, alpha=0.7, 
+        label=f'f4 ({frequencies[3]} Hz, θ={np.degrees(phases[3]):.0f}°)')
 ax.plot(x_plot, S[plot_range], 'k-', linewidth=2, alpha=0.8, label='S(x) (Combined)')
 ax.set_xlabel('Time (seconds)', fontsize=12)
 ax.set_ylabel('Amplitude', fontsize=12)
-ax.set_title('Overlay of All Frequencies and Combined Signal', fontsize=14)
+ax.set_title('Overlay of Phase-Shifted Frequencies and Combined Signal', fontsize=14)
 ax.legend(loc='upper right')
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
@@ -173,3 +184,6 @@ print("Saved: visualizations/04_overlay_signals.png")
 plt.close()
 
 print("\nAll visualizations created successfully!")
+print(f"\nPhase shifts used:")
+for i, (freq, phase) in enumerate(zip(frequencies, phases)):
+    print(f"  f{i+1} ({freq} Hz): θ = {phase:.4f} rad ({np.degrees(phase):.1f}°)")
