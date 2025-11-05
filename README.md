@@ -218,39 +218,39 @@ We chose **PyTorch** as our deep learning framework for its flexibility, excelle
 ```
 ┌─────────────────────────────────────────────────────┐
 │                   INPUT LAYER                       │
-│  Shape: (batch, 50 timesteps, 5 features)          │
-│  • 1 signal value: S(x)                            │
-│  • 4 selector values: one-hot encoding             │
+│  Shape: (batch, 50 timesteps, 5 features)           │
+│  • 1 signal value: S(x)                             │
+│  • 4 selector values: one-hot encoding              │
 └─────────────────┬───────────────────────────────────┘
                   │
 ┌─────────────────▼───────────────────────────────────┐
 │              LSTM LAYER 1                           │
 │  • 128 hidden units                                 │
-│  • Bidirectional: No (causal)                      │
-│  • Dropout: 0.2 (between layers)                   │
+│  • Bidirectional: No (causal)                       │
+│  • Dropout: 0.2 (between layers)                    │
 └─────────────────┬───────────────────────────────────┘
                   │
 ┌─────────────────▼───────────────────────────────────┐
 │              LSTM LAYER 2                           │
 │  • 128 hidden units                                 │
-│  • Captures higher-level temporal patterns         │
+│  • Captures higher-level temporal patterns          │
 └─────────────────┬───────────────────────────────────┘
                   │
 ┌─────────────────▼───────────────────────────────────┐
 │              DROPOUT LAYER                          │
-│  • Rate: 0.2 (prevents overfitting)                │
+│  • Rate: 0.2 (prevents overfitting)                 │
 └─────────────────┬───────────────────────────────────┘
                   │
 ┌─────────────────▼───────────────────────────────────┐
 │          FULLY CONNECTED LAYER                      │
-│  • Maps 128 features → 1 output                    │
-│  • No activation (regression task)                 │
+│  • Maps 128 features → 1 output                     │
+│  • No activation (regression task)                  │
 └─────────────────┬───────────────────────────────────┘
                   │
 ┌─────────────────▼───────────────────────────────────┐
 │                OUTPUT LAYER                         │
-│  Shape: (batch, 50 timesteps, 1)                   │
-│  Value: Filtered frequency signal                  │
+│  Shape: (batch, 50 timesteps, 1)                    │
+│  Value: Filtered frequency signal                   │
 └─────────────────────────────────────────────────────┘
 ```
 
