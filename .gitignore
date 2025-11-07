@@ -8,3 +8,9 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Data
+data/*
+visualizations/*
+models/*
+.DS_Store
