@@ -10,6 +10,9 @@ wheels/
 .venv
 
 # Data
+data/
+visualizations/
+models/
 data/*
 visualizations/*
 models/*
