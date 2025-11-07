@@ -1,26 +1,46 @@
 """
 Step 2: Prepare training data with one-hot selectors
+Now processing separate train/test datasets (different noise seeds)
 """
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-# Load the data
-data = np.load('data/frequency_data.npz')
-x = data['x']
-f1 = data['f1']
-f2 = data['f2']
-f3 = data['f3']
-f4 = data['f4']
-S = data['S']
-frequencies = data['frequencies']
+print("="*70)
+print("PREPARING TRAINING DATA")
+print("="*70)
 
-n_samples = len(x)
-print(f"Loaded data with {n_samples} samples")
-print(f"Frequencies: {frequencies}")
+# Load TRAINING data (Seed #1)
+print("\nLoading training dataset (Seed #1)...")
+train_data = np.load('data/frequency_data_train.npz')
+x_train = train_data['x']
+S_train = train_data['S']
+target1_train = train_data['target1']
+target2_train = train_data['target2']
+target3_train = train_data['target3']
+target4_train = train_data['target4']
+frequencies = train_data['frequencies']
+
+n_samples_train = len(x_train)
+print(f"  Training samples: {n_samples_train}")
+print(f"  Frequencies: {frequencies}")
+
+# Load TEST data (Seed #2)
+print("\nLoading test dataset (Seed #2)...")
+test_data = np.load('data/frequency_data_test.npz')
+x_test_raw = test_data['x']
+S_test = test_data['S']
+target1_test = test_data['target1']
+target2_test = test_data['target2']
+target3_test = test_data['target3']
+target4_test = test_data['target4']
+
+n_samples_test = len(x_test_raw)
+print(f"  Test samples: {n_samples_test}")
+print(f"  NOTE: Test set uses completely different noise (Seed #2)")
 
 # ============================================================================
-# Create Training Samples
+# Create Sequences from Both Datasets
 # ============================================================================
 # For LSTM, we need to create sequences from the time series data
 # We'll use a sliding window approach
@@ -29,13 +49,11 @@ print(f"Frequencies: {frequencies}")
 sequence_length = 50  # Use 50 time steps as input
 step_size = 1  # Stride between sequences
 
-print(f"\nCreating sequences with:")
+print(f"\n" + "="*70)
+print("SEQUENCE CREATION PARAMETERS")
+print("="*70)
 print(f"  Sequence length: {sequence_length}")
 print(f"  Step size: {step_size}")
-
-# Calculate number of sequences
-n_sequences = (n_samples - sequence_length) // step_size + 1
-print(f"  Total sequences: {n_sequences}")
 
 # One-hot selectors for the 4 frequencies
 # c1 = [1, 0, 0, 0] -> select f1
@@ -49,91 +67,141 @@ selectors = np.array([
     [0, 0, 0, 1]   # c4
 ])
 
-# Stack all target frequencies
-all_frequencies = np.stack([f1, f2, f3, f4], axis=1)  # Shape: (n_samples, 4)
-
-# Create sequences
-# For each sequence, we'll create 4 training samples (one for each selector)
-# Input: S(x) sequence + selector (one-hot vector)
-# Output: fi(x) sequence (the selected frequency)
-
-X_sequences = []  # Input signal sequences
-X_selectors = []  # Input selectors
-y_sequences = []  # Target frequency sequences
-
-for i in range(0, n_samples - sequence_length, step_size):
-    # Extract sequence of S(x)
-    S_seq = S[i:i+sequence_length]
+def create_sequences(S, targets, sequence_length, step_size, dataset_name):
+    """
+    Create sequences from signal and targets
     
-    # Extract target frequency sequences
-    f_seqs = all_frequencies[i:i+sequence_length, :]  # Shape: (seq_len, 4)
+    For each sequence, we create 4 training samples (one for each selector)
+    Input: S(x) sequence + selector (one-hot vector)
+    Output: fi(x) sequence (the selected frequency)
+    """
+    print(f"\nCreating sequences for {dataset_name}...")
     
-    # Create 4 training samples for this sequence (one per frequency)
-    for j in range(4):
-        X_sequences.append(S_seq)
-        X_selectors.append(selectors[j])
-        y_sequences.append(f_seqs[:, j])
+    # Stack all target frequencies
+    all_frequencies = np.stack(targets, axis=1)  # Shape: (n_samples, 4)
+    
+    X_sequences = []  # Input signal sequences
+    X_selectors = []  # Input selectors
+    y_sequences = []  # Target frequency sequences
+    
+    n_samples = len(S)
+    for i in range(0, n_samples - sequence_length, step_size):
+        # Extract sequence of S(x)
+        S_seq = S[i:i+sequence_length]
+        
+        # Extract target frequency sequences
+        f_seqs = all_frequencies[i:i+sequence_length, :]  # Shape: (seq_len, 4)
+        
+        # Create 4 training samples for this sequence (one per frequency)
+        for j in range(4):
+            X_sequences.append(S_seq)
+            X_selectors.append(selectors[j])
+            y_sequences.append(f_seqs[:, j])
+    
+    # Convert to numpy arrays
+    X_sequences = np.array(X_sequences)  # Shape: (n_train, sequence_length)
+    X_selectors = np.array(X_selectors)  # Shape: (n_train, 4)
+    y_sequences = np.array(y_sequences)  # Shape: (n_train, sequence_length)
+    
+    print(f"  Sequences created: {len(X_sequences)}")
+    print(f"  X_sequences shape: {X_sequences.shape}")
+    print(f"  X_selectors shape: {X_selectors.shape}")
+    print(f"  y_sequences shape: {y_sequences.shape}")
+    
+    return X_sequences, X_selectors, y_sequences
 
-# Convert to numpy arrays
-X_sequences = np.array(X_sequences)  # Shape: (n_train, sequence_length)
-X_selectors = np.array(X_selectors)  # Shape: (n_train, 4)
-y_sequences = np.array(y_sequences)  # Shape: (n_train, sequence_length)
+# Create sequences for TRAINING data (Seed #1)
+X_train_seq, X_train_sel, y_train_seq = create_sequences(
+    S_train,
+    [target1_train, target2_train, target3_train, target4_train],
+    sequence_length,
+    step_size,
+    "TRAINING SET (Seed #1)"
+)
 
-print(f"\nTraining data shapes:")
-print(f"  X_sequences (signal): {X_sequences.shape}")
-print(f"  X_selectors (one-hot): {X_selectors.shape}")
-print(f"  y_sequences (target): {y_sequences.shape}")
+# Create sequences for TEST data (Seed #2)
+X_test_seq, X_test_sel, y_test_seq = create_sequences(
+    S_test,
+    [target1_test, target2_test, target3_test, target4_test],
+    sequence_length,
+    step_size,
+    "TEST SET (Seed #2)"
+)
 
+# ============================================================================
+# Combine Features (Signal + Selector)
 # ============================================================================
 # The LSTM input will combine S(x) sequence with the selector
-# Two approaches:
-# 1. Concatenate selector to each time step
-# 2. Use selector as additional input
-# We'll use approach 1: broadcast selector across all time steps
+# We broadcast selector across all time steps
 # ============================================================================
 
-# Expand selector to match sequence length
-# Shape: (n_train, sequence_length, 4)
-X_selectors_expanded = np.repeat(X_selectors[:, np.newaxis, :], sequence_length, axis=1)
+def combine_features(X_seq, X_sel, y_seq, dataset_name):
+    """
+    Combine signal sequences with selector one-hot encoding
+    
+    Final input shape: (n_samples, sequence_length, 5)
+    5 features = 1 signal value + 4 selector values
+    """
+    print(f"\nCombining features for {dataset_name}...")
+    
+    # Expand selector to match sequence length
+    # Shape: (n_samples, sequence_length, 4)
+    X_sel_expanded = np.repeat(X_sel[:, np.newaxis, :], sequence_length, axis=1)
+    
+    # Expand signal sequence to have feature dimension
+    # Shape: (n_samples, sequence_length, 1)
+    X_seq_expanded = X_seq[:, :, np.newaxis]
+    
+    # Concatenate signal and selector
+    # Final input shape: (n_samples, sequence_length, 5)
+    X_combined = np.concatenate([X_seq_expanded, X_sel_expanded], axis=2)
+    
+    # Expand target to have feature dimension
+    # Shape: (n_samples, sequence_length, 1)
+    y_expanded = y_seq[:, :, np.newaxis]
+    
+    print(f"  Combined input shape: {X_combined.shape}")
+    print(f"  Features: 1 signal + 4 selectors = 5 total")
+    print(f"  Target shape: {y_expanded.shape}")
+    
+    return X_combined, y_expanded
 
-# Expand signal sequence to have feature dimension
-# Shape: (n_train, sequence_length, 1)
-X_sequences_expanded = X_sequences[:, :, np.newaxis]
+# Combine features for training data (Seed #1)
+X_train_combined, y_train_combined = combine_features(
+    X_train_seq, X_train_sel, y_train_seq, "TRAINING SET"
+)
 
-# Concatenate signal and selector
-# Final input shape: (n_train, sequence_length, 5)
-# 5 features = 1 signal value + 4 selector values
-X_combined = np.concatenate([X_sequences_expanded, X_selectors_expanded], axis=2)
-
-print(f"\nCombined input shape: {X_combined.shape}")
-print(f"  (samples, sequence_length, features)")
-print(f"  Features: 1 signal value + 4 selector values = 5 total")
-
-# Expand target to have feature dimension
-# Shape: (n_train, sequence_length, 1)
-y_sequences_expanded = y_sequences[:, :, np.newaxis]
-
-print(f"\nTarget output shape: {y_sequences_expanded.shape}")
+# Combine features for test data (Seed #2)
+X_test_combined, y_test_combined = combine_features(
+    X_test_seq, X_test_sel, y_test_seq, "TEST SET"
+)
 
 # ============================================================================
-# Split into train/validation/test sets
+# Split Training Data into Train/Validation
+# Test data remains separate (Seed #2)
 # ============================================================================
 from sklearn.model_selection import train_test_split
 
-# First split: 80% train, 20% temp (which will be split into val and test)
-X_train, X_temp, y_train, y_temp = train_test_split(
-    X_combined, y_sequences_expanded, test_size=0.2, random_state=42
+print(f"\n" + "="*70)
+print("DATA SPLITTING")
+print("="*70)
+print(f"Training data (Seed #1) will be split into train/val")
+print(f"Test data (Seed #2) remains separate for final evaluation")
+
+# Split training data: 90% train, 10% validation
+X_train, X_val, y_train, y_val = train_test_split(
+    X_train_combined, y_train_combined, test_size=0.1, random_state=42
 )
 
-# Second split: Split temp into 50% validation, 50% test (10% each of total)
-X_val, X_test, y_val, y_test = train_test_split(
-    X_temp, y_temp, test_size=0.5, random_state=42
-)
+# Test data is already separate (different noise seed)
+X_test = X_test_combined
+y_test = y_test_combined
 
-print(f"\nData split:")
-print(f"  Training set: {X_train.shape[0]} samples ({X_train.shape[0]/len(X_combined)*100:.1f}%)")
-print(f"  Validation set: {X_val.shape[0]} samples ({X_val.shape[0]/len(X_combined)*100:.1f}%)")
-print(f"  Test set: {X_test.shape[0]} samples ({X_test.shape[0]/len(X_combined)*100:.1f}%)")
+print(f"\nFinal data split:")
+print(f"  Training set:   {X_train.shape[0]} samples ({X_train.shape[0]/(X_train.shape[0]+X_val.shape[0])*100:.1f}% of Seed #1)")
+print(f"  Validation set: {X_val.shape[0]} samples ({X_val.shape[0]/(X_train.shape[0]+X_val.shape[0])*100:.1f}% of Seed #1)")
+print(f"  Test set:       {X_test.shape[0]} samples (100% from Seed #2)")
+print(f"\n  CRITICAL: Test set uses COMPLETELY DIFFERENT NOISE from training!")
 
 # Save the processed data
 np.savez('data/training_data.npz',
@@ -153,8 +221,12 @@ print(f"\nTraining data saved to data/training_data.npz")
 # ============================================================================
 Path("visualizations").mkdir(exist_ok=True)
 
+print(f"\n" + "="*70)
+print("CREATING VISUALIZATIONS")
+print("="*70)
+
 fig, axes = plt.subplots(4, 2, figsize=(14, 12))
-fig.suptitle('Sample Training Data: Input Signal & Target Frequencies', fontsize=16)
+fig.suptitle('Sample Training Data: Noisy Input Signal & Pure Target Frequencies', fontsize=16)
 
 # Show one example for each frequency selector
 for i in range(4):
@@ -162,22 +234,22 @@ for i in range(4):
     selector_mask = np.all(X_train[:, 0, 1:] == selectors[i], axis=1)
     sample_idx = np.where(selector_mask)[0][0]
     
-    sample_input = X_train[sample_idx, :, 0]  # Signal
+    sample_input = X_train[sample_idx, :, 0]  # Noisy signal S
     sample_selector = X_train[sample_idx, 0, 1:]  # Selector (same for all time steps)
-    sample_target = y_train[sample_idx, :, 0]  # Target
+    sample_target = y_train[sample_idx, :, 0]  # Pure target
     
-    # Plot input signal
-    axes[i, 0].plot(sample_input, 'k-', linewidth=1.5, label='Input S(x)')
+    # Plot input signal (noisy)
+    axes[i, 0].plot(sample_input, 'k-', linewidth=1.5, label='Input S(t) [Noisy]', alpha=0.7)
     axes[i, 0].set_ylabel(f'Amplitude', fontsize=10)
     axes[i, 0].set_title(f'Input Signal with Selector {sample_selector}', fontsize=11)
     axes[i, 0].grid(True, alpha=0.3)
     axes[i, 0].legend(loc='upper right')
     
-    # Plot target frequency
+    # Plot target frequency (pure, no noise)
     axes[i, 1].plot(sample_target, ['b-', 'g-', 'r-', 'm-'][i], linewidth=1.5, 
-                    label=f'Target f{i+1} ({frequencies[i]} Hz)')
+                    label=f'Target f{i+1} ({frequencies[i]} Hz) [Pure]')
     axes[i, 1].set_ylabel(f'Amplitude', fontsize=10)
-    axes[i, 1].set_title(f'Target Frequency f{i+1}', fontsize=11)
+    axes[i, 1].set_title(f'Target Frequency f{i+1} (No Noise)', fontsize=11)
     axes[i, 1].grid(True, alpha=0.3)
     axes[i, 1].legend(loc='upper right')
     
@@ -187,7 +259,7 @@ for i in range(4):
 
 plt.tight_layout()
 plt.savefig('visualizations/05_training_samples.png', dpi=300, bbox_inches='tight')
-print("Saved: visualizations/05_training_samples.png")
+print("\n✓ Saved: visualizations/05_training_samples.png")
 plt.close()
 
 # ============================================================================
@@ -222,8 +294,42 @@ axes[1].grid(True, alpha=0.3)
 
 plt.tight_layout()
 plt.savefig('visualizations/06_model_io_structure.png', dpi=300, bbox_inches='tight')
-print("Saved: visualizations/06_model_io_structure.png")
+print("✓ Saved: visualizations/06_model_io_structure.png")
 plt.close()
+
+print("\n" + "="*70)
+print("SEQUENCE LENGTH JUSTIFICATION (L=50)")
+print("="*70)
+print("""
+This implementation uses L=50 (sequence length of 50 timesteps) instead of L=1.
+
+PEDAGOGICAL JUSTIFICATION:
+
+1. TEMPORAL ADVANTAGE:
+   - At 1000 Hz sampling, L=50 covers 50ms of signal
+   - For f1 (1 Hz): Captures 5% of one cycle
+   - For f4 (7 Hz): Captures 35% of one cycle
+   - LSTM can learn phase and frequency patterns across multiple timesteps
+   - Hidden states accumulate information about oscillation patterns
+
+2. COMPARISON TO L=1:
+   - L=1: LSTM must rely ONLY on hidden state continuity between samples
+   - L=50: LSTM sees context window + maintains hidden state
+   - Result: Stronger temporal modeling with both local context and memory
+
+3. OUTPUT HANDLING:
+   - Model outputs sequence-to-sequence (50 inputs → 50 outputs)
+   - Each timestep prediction uses context from previous steps in sequence
+   - Maintains temporal coherence within sequences
+
+4. PRACTICAL BENEFITS:
+   - More efficient training (processes 50 samples at once)
+   - Better gradient flow (BPTT over 50 steps, not just 1)
+   - Natural sliding window inference for real-time applications
+
+If L=1 were used, we would need explicit manual state management between
+samples, which is pedagogically interesting but computationally inefficient.
+""")
 
 print("\n" + "="*70)
 print("LOSS FUNCTION RECOMMENDATION")
@@ -239,11 +345,6 @@ Rationale:
 3. Smooth Gradients: Provides smooth gradients for LSTM training
 4. Standard Choice: MSE is the standard loss for time series regression
 
-Alternative loss functions to consider:
-- Mean Absolute Error (MAE): More robust to outliers, but less common for signals
-- Huber Loss: Combination of MSE and MAE, good for noisy data
-- Custom Signal-to-Noise Ratio (SNR) loss: Could maximize SNR of filtered signal
-
 We'll use MSE as the primary loss function.
 """)
 
@@ -258,9 +359,6 @@ Beyond the loss function, we'll track these metrics:
 3. **MAE**: Mean Absolute Error (robust metric)
 4. **R² Score**: Coefficient of determination (how well we explain variance)
 5. **Correlation**: Pearson correlation between predicted and actual signals
-6. **Frequency Domain Error**: MSE in frequency domain (FFT comparison)
 
 These will be computed during evaluation to assess model performance.
 """)
-
-print("\nTraining data preparation complete!")

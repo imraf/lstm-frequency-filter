@@ -22,8 +22,9 @@ This project demonstrates the power of **Long Short-Term Memory (LSTM)** network
 
 - 🎼 **Decompose** complex multi-frequency signals into individual components
 - 🎛️ **Select** specific frequencies using one-hot encoded selectors
-- 📊 **Achieve** 94.8% accuracy (R² score) in frequency extraction
-- ⚡ **Process** signals in real-time with learned temporal patterns
+- 📊 **Achieve** 35% variance explanation (R² = 0.35) in noisy frequency extraction
+- ⚡ **Process** signals with 63% correlation to ground truth
+- 🎯 **Outperform** random baseline by 54% and mean baseline by 41%
 
 <div align="center">
 
@@ -55,12 +56,12 @@ Our LSTM model learns to extract a specific frequency component `fᵢ(x)` from `
 
 We chose four harmonically distinct frequencies with different phase shifts to create a realistic signal processing challenge:
 
-| Frequency | Hz | Phase θ (rad) | Phase θ (degrees) | Period (s) | Cycles in 20s |
+| Frequency | Hz | Phase θ (rad) | Phase θ (degrees) | Period (s) | Cycles in 10s |
 |-----------|-----|---------------|-------------------|-----------|---------------|
-| **f₁** | 1.0 | 0.000 | 0° | 1.000 | 20 |
-| **f₂** | 3.0 | 0.785 (π/4) | 45° | 0.333 | 60 |
-| **f₃** | 5.0 | 1.571 (π/2) | 90° | 0.200 | 100 |
-| **f₄** | 7.0 | 2.356 (3π/4) | 135° | 0.143 | 140 |
+| **f₁** | 1.0 | 0.000 | 0° | 1.000 | 10 |
+| **f₂** | 3.0 | 0.785 (π/4) | 45° | 0.333 | 30 |
+| **f₃** | 5.0 | 1.571 (π/2) | 90° | 0.200 | 50 |
+| **f₄** | 7.0 | 2.356 (3π/4) | 135° | 0.143 | 70 |
 
 **Why these frequencies with phase shifts?**
 - ✅ Well-separated in frequency domain (easy to visualize in FFT)
@@ -96,35 +97,36 @@ We chose four harmonically distinct frequencies with different phase shifts to c
 
 ### Signal Generation Process
 
-We generate a rich, high-resolution dataset that captures the full dynamics of our multi-frequency system:
+We generate a challenging dataset with **fixed phase offsets and additive Gaussian noise** that tests the model's ability to extract pure frequencies from noisy mixed signals:
 
 #### 1️⃣ **Sampling Strategy**
 - **Total samples**: 10,000 data points
-- **Time interval**: [0, 20] seconds
-- **Sampling rate**: 500 Hz (500 samples/second)
-- **Duration**: Long enough to capture 20 cycles of the slowest frequency (f₁)
+- **Time interval**: [0, 10] seconds
+- **Sampling rate**: 1000 Hz (Fs = 1000 samples/second)
+- **Duration**: Captures 10 complete cycles of the slowest frequency (f₁)
 
-#### 2️⃣ **Mathematical Foundation with Phase Shifts**
+#### 2️⃣ **Mathematical Foundation with Fixed Phases and Additive Noise**
 
-For each frequency component `fᵢ`, we compute with phase shift `θᵢ`:
-
-```python
-f₁(x) = sin(2π · 1.0 · x + 0.000)      # 1 Hz, phase = 0° (reference)
-f₂(x) = sin(2π · 3.0 · x + π/4)        # 3 Hz, phase = 45°  
-f₃(x) = sin(2π · 5.0 · x + π/2)        # 5 Hz, phase = 90°
-f₄(x) = sin(2π · 7.0 · x + 3π/4)       # 7 Hz, phase = 135°
-```
-
-Then combine them into the composite signal:
+For each frequency component `fᵢ`, we generate clean sinusoids with fixed phase offsets:
 
 ```python
-S(x) = f₁(x) + f₂(x) + f₃(x) + f₄(x)
+# Clean sinusoids with FIXED phases:
+θ = [0°, 45°, 90°, 135°]  # Fixed phase offsets
+Sinusᵢ(t) = sin(2π·fᵢ·t + θᵢ)
 ```
 
-**Phase Shift Impact:**
-- At `x = 0`: f₁ starts at 0, f₂ at 0.707, f₃ at 1.0, f₄ at 0.707
-- This creates a more complex initial condition: `S(0) = 2.414`
-- Phase shifts make the model learn temporal relationships, not just frequency content
+Then combine and add Gaussian noise:
+
+```python
+S_clean(t) = (1/4) · Σ Sinusᵢ(t)
+S_noisy(t) = S_clean(t) + ε, where ε ~ N(0, σ²), σ = 0.1
+```
+
+**Additive Gaussian Noise:**
+- SNR ≈ 11 dB (moderate noise level)
+- Preserves frequency structure (learnable task)
+- Different noise realizations for train/test (tests generalization)
+- Realistic signal processing scenario
 
 #### 3️⃣ **Dataset Structure**
 
@@ -296,10 +298,10 @@ LSTMs excel at this task because they:
 ### Training Characteristics
 
 - **Convergence**: Smooth decrease in both training and validation loss
-- **Best Epoch**: 47 (validation loss: 0.0251)
-- **Final Training Loss**: 0.0332
-- **Final Validation Loss**: 0.0296
-- **Training Time**: ~12 minutes on CPU (50 epochs × 14 seconds/epoch)
+- **Best Epoch**: 50 (validation loss: 0.0806)
+- **Final Training Loss**: 0.0849
+- **Final Validation Loss**: 0.0806
+- **Training Time**: ~15 minutes on CPU (50 epochs × 18 seconds/epoch)
 - **Early Stopping**: Not triggered (model continued improving)
 
 ### Optimization Details
@@ -319,11 +321,15 @@ LSTMs excel at this task because they:
 
 | Metric | Value | Interpretation |
 |--------|-------|----------------|
-| 🎯 **R² Score** | **0.945** | Model explains **94.5%** of variance |
-| 📊 **Correlation** | **0.972** | Very strong linear relationship |
-| 📉 **RMSE** | **0.165** | Average error of ±0.165 amplitude |
-| 📏 **MAE** | **0.068** | Median error is very low |
-| 🔢 **MSE** | **0.027** | Low squared error |
+| 🎯 **R² Score** | **0.347** | Model explains **34.7%** of variance |
+| 📊 **Correlation** | **0.628** | Strong positive correlation |
+| 📉 **RMSE** | **0.572** | Average error of ±0.57 amplitude |
+| 📏 **MAE** | **0.376** | Mean absolute error |
+| 🔢 **MSE** | **0.327** | Mean squared error |
+
+**Baseline Comparisons:**
+- **54% better than random baseline** (MAE: 0.82 vs 0.38)
+- **41% better than mean baseline** (MAE: 0.64 vs 0.38)
 
 </div>
 
@@ -331,10 +337,10 @@ LSTMs excel at this task because they:
 
 | Frequency | Hz | Phase | MSE ↓ | RMSE ↓ | MAE ↓ | R² Score ↑ | Performance |
 |-----------|-----|-------|-------|--------|-------|------------|-------------|
-| **f₁** | 1.0 | 0° | 0.0149 | 0.122 | 0.054 | **0.970** | ⭐⭐⭐⭐⭐ Excellent |
-| **f₂** | 3.0 | 45° | 0.0318 | 0.178 | 0.072 | **0.937** | ⭐⭐⭐⭐ Very Good |
-| **f₃** | 5.0 | 90° | 0.0370 | 0.192 | 0.076 | **0.926** | ⭐⭐⭐⭐ Very Good |
-| **f₄** | 7.0 | 135° | 0.0247 | 0.157 | 0.067 | **0.951** | ⭐⭐⭐⭐⭐ Excellent |
+| **f₁** | 1.0 | 0° | 0.182 | 0.426 | 0.249 | **0.638** | ⭐⭐⭐⭐ Very Good |
+| **f₂** | 3.0 | 45° | 0.410 | 0.640 | 0.440 | **0.180** | ⭐⭐ Fair |
+| **f₃** | 5.0 | 90° | 0.417 | 0.645 | 0.432 | **0.165** | ⭐⭐ Fair |
+| **f₄** | 7.0 | 135° | 0.300 | 0.547 | 0.383 | **0.401** | ⭐⭐⭐ Good |
 
 <div align="center">
 
@@ -348,13 +354,13 @@ LSTMs excel at this task because they:
 
 ### Key Findings
 
-✅ **Excellent overall R² of 0.945** - Model successfully handles phase-shifted frequencies  
-✅ **Strong correlation of 0.972** - Predictions closely match actual values  
-✅ **Low RMSE of 0.165** - Predictions typically within ±0.165 amplitude units  
-✅ **Best on f₁ (1 Hz, 0°)** - Lowest frequency with reference phase is easiest to filter (R² = 0.970)  
-✅ **Phase-invariant performance** - Model filters all frequencies with R² > 0.92 regardless of phase  
-✅ **No obvious bias** - Errors are normally distributed around zero  
-✅ **Handles temporal offsets** - Successfully learned to extract frequencies despite different phase shifts
+✅ **Moderate R² of 0.347** - Model explains 35% of variance in noisy signals  
+✅ **Strong correlation of 0.628** - Predictions show clear relationship with targets  
+✅ **Significantly better than baselines** - 54% better than random, 41% better than mean  
+✅ **Best on f₁ (1 Hz, 0°)** - Lower frequency is easier to filter (R² = 0.638)  
+✅ **Challenging task** - Separating 4 overlapping frequencies from noisy mixed signal  
+✅ **Real generalization** - Model trained on one noise realization, tested on another  
+✅ **Phase-aware learning** - Successfully handles phase offsets (0°, 45°, 90°, 135°)
 
 ---
 
@@ -659,51 +665,52 @@ Alternative loss functions considered:
 
 ### What We Learned
 
-1. 🎯 **Lower frequencies are easier to extract**
-   - f₁ (1 Hz, 0°): R² = 0.970 (best performance)
-   - Longer wavelengths provide more context within 50-timestep windows
-   - Phase shift doesn't significantly impact performance
+1. 🎯 **Task feasibility is critical for learning**
+   - Initial approach (per-sample random phase) destroyed frequency structure → R² = -0.45
+   - Improved approach (fixed phases + Gaussian noise) preserves structure → R² = 0.35
+   - **+178% improvement** demonstrates importance of learnable task design
 
-2. 🧠 **LSTMs excel at phase-invariant pattern recognition**
-   - Successfully learned phase relationships and temporal offsets
-   - Maintained coherence across sequence boundaries despite different phases
-   - Adapted behavior based on one-hot selector
-   - **Phase shifts actually improved generalization** - model learned robust features
+2. 🧠 **LSTMs can learn frequency patterns in time domain**
+   - Successfully extracts specific frequencies based on one-hot selector
+   - Works without explicit Fourier transforms
+   - Learns temporal patterns across 50-timestep windows
+   - Handles phase offsets (0°, 45°, 90°, 135°)
 
-3. 📊 **Model generalizes exceptionally well to phase-shifted signals**
-   - No overfitting despite 201K parameters
-   - Test performance (R² = 0.945) close to validation (R² = 0.947)
-   - Dropout and weight decay were effective
-   - **Handles all phase offsets equally well** (0° to 135°)
+3. 📊 **Model generalizes to unseen noise**
+   - Trained on noise realization #1 (Seed #1)
+   - Tested on noise realization #2 (Seed #2)
+   - R² = 0.35 shows real generalization, not memorization
+   - Dropout and weight decay prevent overfitting
 
-4. 🎼 **Frequency separation is learnable in time domain**
-   - Model discovered frequency-specific patterns without explicit FFT
-   - Works in time domain, unlike traditional filters
-   - One-hot encoding provides clear instruction signal
-   - **Phase information is implicitly encoded** in LSTM hidden states
+4. 🎼 **Frequency separation from noisy signals is challenging**
+   - 4 overlapping frequencies create complex interference patterns
+   - Gaussian noise (SNR ≈ 11 dB) adds realistic difficulty
+   - R² = 0.35 is reasonable for this task complexity
+   - Lower frequencies (f₁) perform better (R² = 0.64) due to longer wavelengths
 
-5. ⚡ **Real-time filtering is feasible**
-   - Fast inference (milliseconds per sequence)
-   - Could process streaming audio with sliding windows
-   - No need for complex signal processing pipelines
-   - **Phase shifts don't slow down inference**
+5. ⚡ **Performance vs baseline shows real learning**
+   - 54% better MAE than random noise predictions
+   - 41% better MAE than always predicting mean
+   - Strong correlation (0.628) confirms genuine pattern learning
+   - Some samples show excellent prediction (R² > 0.6)
 
-6. 🌊 **Phase shifts create a more challenging task**
-   - Different starting conditions test model robustness
-   - More realistic simulation of real-world signals
-   - Forces model to learn temporal structure, not just memorize patterns
+6. 🔬 **Room for improvement exists**
+   - Higher frequencies (f₂, f₃) need better modeling
+   - Only 32% of samples have positive R²
+   - Could benefit from longer training or larger architecture
+   - Trade-off between model complexity and generalization
 
 ### Performance Patterns
 
 | Observation | Implication |
 |-------------|-------------|
-| R² decreases with frequency | Higher frequencies need more samples per cycle |
-| Phase shift has minimal impact on R² | Model learned phase-invariant representations |
-| Errors are unbiased (mean ≈ 0) | Model is not systematically over/under-predicting |
-| Normal error distribution | Prediction uncertainty is well-calibrated |
-| Strong validation performance | Hyperparameters are well-tuned |
-| Smooth loss curves | Training is stable, no need for adjustments |
-| f₁ and f₄ perform best | Edge frequencies benefit from less interference |
+| R² decreases with frequency | Higher frequencies harder to separate from noise |
+| f₁ (1 Hz) performs best | Longer wavelengths provide more context per window |
+| Overall R² = 0.35 | Moderate performance for challenging multi-frequency task |
+| 63% correlation | Strong linear relationship despite noise |
+| Variable per-sample quality | Some sequences predicted well, others poorly |
+| Better than baselines | Model genuinely learns patterns vs random/mean |
+| Training loss = 0.085 | Model converged well after 50 epochs |
 
 ---
 
@@ -711,20 +718,23 @@ Alternative loss functions considered:
 
 ### Potential Extensions
 
-- [ ] **Variable phase shifts**: Random phases θ ∈ [0, 2π) for each sample
-- [ ] **More frequencies**: Expand to 8-16 frequencies with random phases
-- [ ] **Amplitude variations**: Add A_i coefficients to create A_i·sin(2πf_i·x + θ_i)
-- [ ] **Add noise tolerance**: Test with Gaussian noise, pink noise, and signal corruption
-- [ ] **Bidirectional LSTM**: Process sequences in both directions for better accuracy
-- [ ] **Attention mechanism**: Let model focus on relevant time steps for each frequency
+**Immediate improvements:**
+- [ ] **Train longer**: 50 → 100-200 epochs for better convergence
+- [ ] **Larger model**: 128 → 256 hidden units for more capacity
+- [ ] **Bidirectional LSTM**: Process sequences in both directions
+- [ ] **Lower noise level**: σ = 0.1 → 0.05 for easier learning
+- [ ] **More training data**: 10K → 50K samples
+
+**Advanced extensions:**
+- [ ] **Attention mechanism**: Let model focus on relevant time steps
 - [ ] **Multi-frequency selection**: Extract multiple frequencies simultaneously
+- [ ] **More frequencies**: Expand to 8-16 frequencies
+- [ ] **Variable noise levels**: Train on multiple SNRs for robustness
 - [ ] **Non-sinusoidal waveforms**: Test on square waves, triangle waves, sawtooth
 - [ ] **Real audio signals**: Apply to actual music/speech frequency filtering
-- [ ] **Deeper architectures**: Experiment with 3-4 LSTM layers
 - [ ] **Transformer model**: Compare against attention-based architectures
-- [ ] **Real-time deployment**: Create web app with live frequency filtering
-- [ ] **GPU optimization**: Accelerate training with CUDA
 - [ ] **Ensemble methods**: Combine multiple models for robustness
+- [ ] **Real-time deployment**: Create web app with live frequency filtering
 
 ### Research Directions
 
@@ -790,15 +800,55 @@ MIT License - feel free to use this project for learning, research, or commercia
 
 ---
 
+## 🔬 Approach Evolution
+
+This project demonstrates the critical importance of **learnable task design** in machine learning.
+
+### Initial Approach (Failed)
+Per-sample random amplitude and phase destroyed all frequency structure:
+```python
+# At EVERY sample t:
+Aᵢ(t) ~ Uniform(0.8, 1.2)     # Random amplitude
+φᵢ(t) ~ Uniform(0, 2π)         # Random phase
+Sinusᵢ^noisy(t) = Aᵢ(t) · sin(2π·fᵢ·t + φᵢ(t))
+```
+**Result**: R² = -0.45 (worse than predicting mean)
+
+### Improved Approach (Success)
+Fixed phase offsets with additive Gaussian noise preserves frequency structure:
+```python
+# Fixed phases:
+θ = [0°, 45°, 90°, 135°]
+Sinusᵢ(t) = sin(2π·fᵢ·t + θᵢ)
+S_noisy(t) = (1/4)·Σ Sinusᵢ(t) + ε, where ε ~ N(0, 0.1²)
+```
+**Result**: R² = 0.35 (+178% improvement)
+
+### Key Implementation Details
+
+- **Time domain**: 0-10 seconds
+- **Sampling rate**: 1000 Hz (10,000 samples)
+- **Frequencies**: f₁=1Hz, f₂=3Hz, f₃=5Hz, f₄=7Hz
+- **Phase offsets**: 0°, 45°, 90°, 135° (fixed)
+- **Noise level**: σ = 0.1, SNR ≈ 11 dB
+- **Separate datasets**: Seed #1 (train/val), Seed #2 (test)
+- **Sequence length**: L=50 (justified by temporal advantage)
+- **Loss function**: MSE (appropriate for regression)
+
+---
+
 <div align="center">
 
 ### 🎉 Project Achievements
 
-✅ 10,000 high-quality samples generated  
-✅ 201,345-parameter LSTM trained  
-✅ 94.8% R² score achieved  
-✅ 14 comprehensive visualizations created  
-✅ Real-time frequency filtering demonstrated  
+✅ 10,000 high-quality samples generated with realistic noise (SNR ≈ 11 dB)
+✅ 201,345-parameter LSTM trained successfully  
+✅ R² = 0.35 achieved (35% variance explained in noisy multi-frequency task)
+✅ Strong correlation of 0.628 between predictions and targets
+✅ 54% better than random baseline, 41% better than mean baseline
+✅ 13 comprehensive visualizations created  
+✅ Real generalization: different noise realizations for train/test
+✅ Demonstrates importance of learnable task design (+178% improvement from initial approach)
 
 **Thank you for exploring this project!**
 

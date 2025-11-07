@@ -1,13 +1,13 @@
 #!/bin/bash
 # Complete pipeline to run all steps
 
+# Set Python command (use python3 by default, or override with PYTHON env var)
+PYTHON=${PYTHON:-python3}
+
 echo "=============================================="
 echo "LSTM Frequency Filter - Complete Pipeline"
 echo "=============================================="
 echo ""
-
-# Get the Python executable path
-PYTHON="/Users/bz0r7y/private/NBR/school-2025/semester-1/llm-orchestration/ex02/lstm-frequency-filter/.venv/bin/python"
 
 echo "Step 1: Generating dataset..."
 $PYTHON generate_dataset.py
